@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      rabbitmq:
+        image: rabbitmq:4-management
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 5s --health-timeout 10s --health-retries 20
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: shop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build -- --all
+      - run: npx tsc -p tsconfig.spec.json
+      - name: Create the test databases and the test virtual host
+        run: |
+          docker exec ${{ job.services.postgres.id }} psql -U postgres -c "CREATE DATABASE orders_test" -c "CREATE DATABASE fulfillment_test"
+          docker exec ${{ job.services.rabbitmq.id }} rabbitmqctl add_vhost test
+          docker exec ${{ job.services.rabbitmq.id }} rabbitmqctl set_permissions -p test guest ".*" ".*" ".*"
+      - run: npm run test:e2e
+        env:
+          TEST_RABBITMQ_URL: amqp://guest:guest@localhost:5672/test
+          TEST_ORDERS_DATABASE_URL: postgres://postgres:shop@localhost:5432/orders_test
+          TEST_FULFILLMENT_DATABASE_URL: postgres://postgres:shop@localhost:5432/fulfillment_test

@@ -6,7 +6,7 @@ services:
       # Management UI: http://localhost:15672 (guest / guest)
       - '15672:15672'
   postgres:
-    image: postgres:17
+    image: postgres:19
     environment:
       POSTGRES_PASSWORD: shop
     ports:

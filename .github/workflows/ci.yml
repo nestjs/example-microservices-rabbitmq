@@ -16,7 +16,7 @@ jobs:
         options: >-
           --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 5s --health-timeout 10s --health-retries 20
       postgres:
-        image: postgres:17
+        image: postgres:19
         env:
           POSTGRES_PASSWORD: shop
         ports:
